@@ -42,3 +42,23 @@ For example:
        class ExampleSerializer(serializers.Serializer):
             recaptcha = ReCaptchaField(write_only=True)
             ...
+
+Unit Testing
+~~~~~~~~~~~~
+
+Django Rest reCAPTCHA uses an environment variable ``RECAPTCHA_TESTING`` which
+helps tests. This environment variable should be set to ``"True"`` in your
+testing environment and any value will be considered to be validated.
+
+Example:
+
+.. code-block:: python
+
+    import os
+    os.environ['RECAPTCHA_TESTING'] = 'True'
+
+    data = {'recaptcha': 'dummy value'}
+    response = client.post('/my/api/endpoint/', data)
+    assert response.status_code == 200
+
+The code above may vary according to your testing suite.

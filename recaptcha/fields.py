@@ -1,3 +1,4 @@
+import os
 import json
 import requests
 
@@ -29,6 +30,9 @@ class ReCaptchaField(serializers.CharField):
         data = super(ReCaptchaField, self).to_internal_value(data)
         captcha_url = getattr(settings, 'GR_CAPTCHA_URL', GR_CAPTCHA_DEFAULT_URL)
         captcha_secret_key = getattr(settings, 'GR_CAPTCHA_SECRET_KEY', GR_CAPTCHA_TEST_SECRET_KEY)
+        if os.environ.get('RECAPTCHA_TESTING', None) == 'True':
+            return data
+
         res = requests.post(captcha_url, {
             'secret': captcha_secret_key,
             'response': data
