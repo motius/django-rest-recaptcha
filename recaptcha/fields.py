@@ -1,16 +1,17 @@
-import os
 import json
+import os
+
 import requests
 
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
-
 from rest_framework import serializers
 
-from .constants import GR_CAPTCHA_TEST_SECRET_KEY, GR_CAPTCHA_DEFAULT_URL
+from .constants import GR_CAPTCHA_DEFAULT_URL, GR_CAPTCHA_TEST_SECRET_KEY
 
 
 class ReCaptchaField(serializers.CharField):
+
     extra_error_messages = {
         'write_only': _('This is a write only field'),
         'missing-input-secret': _('Secret key is missing. Please contact admin.'),
@@ -22,6 +23,13 @@ class ReCaptchaField(serializers.CharField):
     }
     default_error_messages = serializers.CharField.default_error_messages.copy()
     default_error_messages.update(extra_error_messages)
+
+    def __init__(self, **kwargs):
+        self.threshold = kwargs.pop('threshold', None)
+        if self.threshold:
+            assert isinstance(self.threshold, float) or isinstance(self.threshold, int), \
+                   'threshold must be a number'
+        super(ReCaptchaField, self).__init__(**kwargs)
 
     def to_representation(self, obj):
         self.fail('write_only')
@@ -39,10 +47,21 @@ class ReCaptchaField(serializers.CharField):
         })
         return_values = json.loads(res.content.decode())
         return_code = return_values.get("success", False)
+        score = return_values.get("score", 0.0)
         error_codes = return_values.get('error-codes', [])
-        if not return_code:
-            if error_codes and error_codes[0] in self.default_error_messages.keys():
-                self.fail(error_codes[0])
+
+        if self.threshold:
+            if self.threshold <= score:
+                return data
             else:
-                self.fail('bad-request')
+                self._raising_error_codes(error_codes=error_codes)
+
+        if not return_code:
+            self._raising_error_codes(error_codes=error_codes)
         return data
+
+    def _raising_error_codes(self, error_codes):
+        if error_codes and error_codes[0] in self.default_error_messages.keys():
+            self.fail(error_codes[0])
+        else:
+            self.fail('bad-request')
